@@ -1,0 +1,45 @@
+workflow:
+  rules:
+    - if: '$CI_COMMIT_BRANCH =~ /^(development|release|v[0-9]+\.[0-9]+.*|qa-.*|qa|uat|v.uat)$/'
+    - if: '$CI_COMMIT_BRANCH =~ /^(development|release|v[0-9]+\.[0-9]+.*|qa-.*|qa|uat|v.uat)$/'
+
+variables:
+  IMAGE_NAME: "hub.enlight.dev/esdsai/studio:$CI_COMMIT_REF_NAME"
+
+stages:
+  - clean_stage
+  - build_stage
+  - push_stage  
+
+# Clean Stage (Remove old image)
+clean:
+  stage: clean_stage
+  script:
+    - docker rmi -f $IMAGE_NAME || true
+  tags:
+    - shell
+  allow_failure: true
+
+# Build Stage (Build Docker image)
+build:
+  stage: build_stage
+  script:
+    - |
+      echo "Building Docker Image: $IMAGE_NAME"
+      docker build --no-cache -t $IMAGE_NAME .
+  tags:
+    - shell
+
+# Push Stage (Push Docker image to repository)
+push:
+  stage: push_stage
+  script:
+    - echo "$DOCKER_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin hub.enlight.dev
+    - docker push $IMAGE_NAME
+    - docker rmi "$IMAGE_NAME" || true
+  tags:
+    - shell
+  rules:
+  - if: '$CI_COMMIT_BRANCH =~ /^(development|qa|uat|v\.uat|v1\.0)$/'
+    when: manual
+
